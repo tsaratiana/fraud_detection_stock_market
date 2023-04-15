@@ -30,7 +30,7 @@ To detect fraud in the stock market, there is a need to analyze large volumes of
 )
 
 
-st.write("## 🔍 Upload your file or select a file on the sidebar!")
+st.write("## 🔍 Upload your file or select a stock on the sidebar!")
 
 # Define a function to perform anomaly detection using a given algorithm
 def detect_anomalies(df, algorithm):
@@ -122,20 +122,20 @@ def app():
 
     st.subheader("Anomaly Probabilities")
     st.line_chart(anomaly_probabilities_if)
-    st.write("These linecharts shows the stock's anomaly probalities over time. The anomaly probability represents the degree of abnormality of a data point, with 0 indicating that the point is very likely to be a normal point and 1 indicating that the point is very likely to be an anomalous point. Therefore, in the scatter plot, the points with a higher anomaly probability (closer to 1) are more likely to be anomalous than the points with a lower anomaly probability (closer to 0).")
+    st.write("These linecharts shows the stock's anomaly probalities and scores over time. The anomaly probability represents the degree of abnormality of a data point, with 0 indicating that the point is very likely to be a normal point and 1 indicating that the point is very likely to be an anomalous point. Therefore, in the scatter plot, the points with a higher anomaly probability (closer to 1) are more likely to be anomalous than the points with a lower anomaly probability (closer to 0).")
 
     # Visualize the anomaly scores using a scatter plot
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
     ax[0].scatter(df.index, df['4. close'], c=anomaly_scores_lof, cmap='viridis', alpha=0.5)
     ax[0].set_title("Anomalies? (closing price)")
     ax[0].set_xlabel("Date")
-    ax[0].set_ylabel("Anomaly Probability")
+    ax[0].set_ylabel("Score")
     ax[0].set_facecolor("none")
 
     ax[1].scatter(df.index, df['1. open'], c=anomaly_scores_lof, cmap='viridis', alpha=0.5)
     ax[1].set_title("Anomalies? (opening price)")
     ax[1].set_xlabel("Date")
-    ax[1].set_ylabel("Anomaly Probability")
+    ax[1].set_ylabel("Score")
     ax[1].set_facecolor("none")
     plt.tight_layout()
     st.pyplot(fig)
