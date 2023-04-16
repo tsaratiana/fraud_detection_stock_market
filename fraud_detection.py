@@ -113,7 +113,10 @@ def app():
     algorithm = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
     anomaly_scores_lof, anomaly_probabilities_lof = detect_anomalies2(df, algorithm)
 
-    
+    st.write("""
+    **This fraud detection application uses two primary techniques to identify potential fraudulent activity:
+    isolation forest and local outlier factor.**
+    """)
     st.write("## 📊 Visualisations")
 
     # Visualize the anomaly scores and probabilities
@@ -125,33 +128,133 @@ def app():
     st.write("These linecharts shows the stock's anomaly probalities and scores over time. The anomaly probability represents the degree of abnormality of a data point, with 0 indicating that the point is very likely to be a normal point and 1 indicating that the point is very likely to be an anomalous point. Therefore, in the scatter plot, the points with a higher anomaly probability (closer to 1) are more likely to be anomalous than the points with a lower anomaly probability (closer to 0).")
 
     # Visualize the anomaly scores using a scatter plot
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6))
-    ax[0].scatter(df.index, df['4. close'], c=anomaly_scores_lof, cmap='viridis', alpha=0.5)
-    ax[0].set_title("Anomalies? (closing price)")
-    ax[0].set_xlabel("Date")
-    ax[0].set_ylabel("Score")
-    ax[0].set_facecolor("none")
+    fig = px.scatter(df, x=df.index, y='4. close', color=anomaly_scores_lof, color_continuous_scale='portland_r')
+    fig.update_layout(title='Anomalies? (closing price)', xaxis_title='Date', yaxis_title='Score')
+    st.plotly_chart(fig)
 
-    ax[1].scatter(df.index, df['1. open'], c=anomaly_scores_lof, cmap='viridis', alpha=0.5)
-    ax[1].set_title("Anomalies? (opening price)")
-    ax[1].set_xlabel("Date")
-    ax[1].set_ylabel("Score")
-    ax[1].set_facecolor("none")
-    plt.tight_layout()
-    st.pyplot(fig)
+    fig = px.scatter(df, x=df.index, y='1. open', color=anomaly_scores_lof, color_continuous_scale='portland_r')
+    fig.update_layout(title='Anomalies? (opening price)', xaxis_title='Date', yaxis_title='Score')
+    st.plotly_chart(fig)
 
     st.write("This scatter plot shows the stock's closing and opening price over time, with the anomaly scores represented by color. The darker the color, the more anomalous the data point is. Anomalous data points may indicate potential fraud, errors in data recording, or other abnormal events that could affect the stock's value. You can use this information to investigate the causes of the anomalies and make informed decisions about trading or investment strategies.")
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sc = ax.scatter(df.index, df['6. volume'], c=anomaly_scores_lof, cmap='viridis')
-    ax.set_title("Anomaly Scores")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Volume")
-    fig.colorbar(sc)
-    plt.tight_layout()
-    st.pyplot(fig)
+    fig = px.scatter(df, x=df.index, y='6. volume', color=anomaly_scores_lof, color_continuous_scale='blackbody')
+    fig.update_layout(title="Anomaly Scores", xaxis_title="Date", yaxis_title="Volume")
+    st.plotly_chart(fig)
+
     st.write("This scatter plot of the volume of a stock over time. The color of each point on the scatter plot represents the anomaly score, with blue indicating a lower anomaly score and yellow indicating a higher anomaly score. This plot can be useful for detecting anomalies in the volume of the financial instrument over time, which could be indicative of potential fraud or other irregularities.")
-    st.write("# Now, it's up to you! 🫵")
+    
+
+    st.write("# 🔍 For a specific year")
+
+    anomaly_threshold = 0.5
+    year_range = df.index.year.unique().tolist()
+    selected_year = st.slider('Select a year:', min_value=min(year_range), max_value=max(year_range))
+
+    # Filter data for selected year
+    df_selected_year = df[df.index.year == selected_year]
+
+   # Define threshold for anomaly detection
+    anomaly_threshold = 0.5
+
+    # Filter data for selected year
+    df_selected_year = df[df.index.year == selected_year]
+
+    # Calculate anomaly scores using Local Outlier Factor
+    lof = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
+    anomaly_scores_lof = lof.fit_predict(df_selected_year[['4. close', '6. volume']])
+
+    # Create scatter plot of closing prices with anomaly scores
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_selected_year.index, y=df_selected_year['4. close'], mode='markers',
+                            marker=dict(color=anomaly_scores_lof, colorscale='orrd_r', opacity=0.5)))
+    fig.update_layout(title=f"Closing Prices and Anomaly Scores for {selected_year}",
+                    xaxis_title="Date", yaxis_title="Closing Price",
+                    coloraxis=dict(colorbar=dict(title="Anomaly Score")),
+                    height=500)
+    st.plotly_chart(fig)
+
+    # Calculate number of potential anomalies
+    num_anomalies = sum(1 for score in anomaly_scores_lof if score < -anomaly_threshold)
+
+    # Display KPI box
+    st.markdown(f"""
+        <div style='background-color:rgba(0, 0, 0, 0.0); border:2px solid #ff4b4b; padding:5px, margin-bottom:10px'>
+            <h2 style='text-align:center'>Potential anomalies</h2>
+            <h3 style='text-align:center'>{num_anomalies}</h3>
+        </div>
+    """, unsafe_allow_html=True)
+
+    dfcopy = df.copy()
+    
+    # Calculate the average volume per transaction (assumes an average transaction size of 100 shares)
+    avg_vol_per_transaction = 100
+
+    # Calculate the total number of transactions per day
+    dfcopy['num_transactions'] = dfcopy['6. volume'] / avg_vol_per_transaction
+
+    df_selected_yearcopy = dfcopy[dfcopy.index.year == selected_year]
+
+    # # Calculate the total number of transactions for the selected year
+    total_transactions = df_selected_yearcopy['num_transactions'].sum()
+
+    # Calculate total revenue
+    total_revenue = df['4. close'].sum()
+
+    # Calculate total amount lost due to fraud
+    anomaly_mask = anomaly_scores_lof == -1
+    total_fraud_loss = df_selected_year.loc[anomaly_mask, '4. close'].sum()
+
+    # Calculate Percentage of fraud losses as a proportion of total revenue
+    pct_fraud_loss = (total_fraud_loss / total_revenue) * 100
+
+    # Calculate the percentage of transactions that are flagged as potentially fraudulent
+    pct_fraudulent_transactions = len(df_selected_year.loc[anomaly_mask, '4. close']) / len(df) * 100
+
+
+    # Display the KPIs
+    st.markdown(f"""
+    <div style='background-color:rgba(0, 0, 0, 0.0); border:2px solid #ff4b4b; padding:5px, margin-bottom:10px'>
+        <h2 style='text-align:center'>{selected_year} KPIs</h2>
+        <div style='display:flex; justify-content:space-around'>
+            <div>
+                <p style='text-align:center'>Number of Transactions</p>
+                <h3 style='text-align:center'>{total_transactions:.0f}</h3>
+            </div>
+            <div>
+                <p style='text-align:center'>Total Revenue</p>
+                <h3 style='text-align:center'>{total_revenue:.0f}</h3>
+            </div>
+        </div>
+        <div style='display:flex; justify-content:space-around'>
+            <div>
+                <p style='text-align:center'>Transactions Potentially Fraudulent</p>
+                <h3 style='text-align:center'>{pct_fraudulent_transactions:.2f}%</h3>
+            </div>
+            <div>
+                <p style='text-align:center'>Fraud Losses (% of Total Revenue)</p>
+                <h3 style='text-align:center'>{pct_fraud_loss:.2f}%</h3>
+            </div>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+                    
+
+    
 
 if __name__ == "__main__":
     app()
+    # Create empty space
+    space = st.empty()
+
+    # Add vertical space
+    empty_line = st.empty()
+    empty_line.markdown("")
+    
+    st.write("""
+    Please note that these techniques are not foolproof and may occasionally flag legitimate transactions as potentially
+    fraudulent. As such, our application should be used as a tool to aid in the identification of potential fraud,
+    rather than a definitive indicator of fraudulent activity.
+    """)
+
+    st.write("# Now, it's up to you! 🫵")
